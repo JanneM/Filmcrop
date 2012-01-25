@@ -57,6 +57,55 @@ def find_minima(arr, seps, nhood)
     mins
 end
 
+# find least square minima
+def find_sqr_minima(strip, frames, avgframe, nhood)
+    arr = strip.intensity
+    ds = strip.divs
+    print "frames: ", frames, "\n"
+    pstep = arr.length/(frames)
+    diffstep = Integer(pstep*nhood)
+
+    mins=Array.new(frames)
+
+
+    (1..frames-2).each {|fr|
+
+	    ps = Integer(fr*pstep)
+	    pe = Integer(ps+avgframe)
+	    min=100000
+	    finp=-1
+	    # normalize
+	    ms = 100000
+	    me = 100000
+	    (-diffstep..diffstep).each {|p|
+		v = arr[ps+p]
+		ms = v if v<ms
+
+		v = arr[pe+p]
+		me = v if v<me
+	    }
+
+	    (-diffstep..diffstep).each {|p|
+		arr[ps+p] -= ms
+		arr[pe+p] -= me
+	    }
+	    (-diffstep..diffstep).each {|p|
+		
+		v=(arr[ps+p]**2 + 
+		   arr[pe+p]**2)
+		if v<min
+		    min=v
+		    finp=p
+		end 
+	    }
+
+	    mins[fr]=[(ps+finp)*ds, (pe+finp)*ds]
+    }
+    mins[0]=[(mins[1][0]-avgframe*ds), (mins[1][0])]
+    mins[frames-1]=[mins[frames-2][1], mins[frames-2][1]+avgframe*ds]
+    mins
+#    mins
+end
 
 # Get a list of input files, optionally an output prefix (defaulting to
 # "crop").
@@ -93,8 +142,8 @@ end
 seps = images-1
 files = ARGV
 
-if files.length < 
-    print "give at least one input file"
+if files.length < 1
+    print "give at least one input file\n"
     exit(0)
 end
 #fheader=File.basename(infile, File.extname(infile))
@@ -108,6 +157,7 @@ Img = Struct.new(:fname,	# Full size file name
 strips=Array.new()
 files.each {|infile|
 
+    print "Processing file: ", infile, "\n"
     instrip = Magick::Image.read(infile).first
     instrip.rotate!(-90, '<')
     ds=instrip.rows/400.0
@@ -119,6 +169,7 @@ files.each {|infile|
     
     a=Array.new()
     strips.push(Img.new(infile, ds, arr, cuts,a, strip.rows, strip.columns))
+    strip.destroy!
 }
 
 #strips.each {|s|
@@ -126,24 +177,27 @@ files.each {|infile|
 #}
 #exit()
 
+print "fitting... \n"
 # fit to an average or given frame width 
 if true
 
     # find the average (or median?) frame width
     total=0
+    mintotal=0
     nr=0
     strips.each {|s|
 	(1..(seps-1)).each {|i|	    # note '1'
+	    mintotal+=(s.cuts[i+1]-s.cuts[i])
 	    total+=s.divs*(s.cuts[i+1]-s.cuts[i])
 	    nr+=1
 	}
     }
     print "Average: ", total,"/", nr, " = ", total/nr, "\n"
+    minavg = Integer(mintotal/nr)
+    avg=Integer(total/nr)
 
-    avg = Integer(total/nr)
-
-    # fit the frame
     strips.each {|s|
+	f2=find_sqr_minima(s, images, minavg, diff_fac)
 	(0..(seps)).each {|i|
 
 	    if i==0	    # first frame
@@ -159,14 +213,18 @@ if true
 
 		f=[s.divs*s.cuts[i], 
 		    s.cuts[i]*s.divs+avg]
+
+		# It's fine, relatively. Let's do fitting here.
+		
 	    end
 
-	    s.fcut.push(f)
+#	    s.fcut.push(f)
 	}
+	s.fcut = f2
     }
 #    exit(0)
 
-# No fixed frame, so jsut set the cuts to each local minimum
+# No fixed frame, so just set the cuts to each local minimum
 else			
     strips.each {|s|
 	(0..(seps)).each {|i|
@@ -179,6 +237,7 @@ end
 filenr=1
 strips.each {|s|
     
+    print "crop file: ", s.fname, "\n"
     instrip = Magick::Image.read(s.fname).first
     instrip.rotate!(-90, '<')
     ds=s.divs
@@ -190,7 +249,9 @@ strips.each {|s|
 	fname=format("%s.%03d.tif", fheader, filenr)
 	filenr+=1
 	outimg.write(fname)
-	print "size: ", (cuts[1]-cuts[0]),"\n"
+	print "\t f# ", i, "\n"
+	outimg.destroy!
+#	print "size: ", (cuts[1]-cuts[0]),"\n"
     }
     instrip.destroy!
 }
