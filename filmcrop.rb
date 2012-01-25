@@ -3,6 +3,7 @@ require 'RMagick'
 require 'optparse'
 require 'pp'
 ds=0
+diff_fac=0.1
 
 # create the intensity array corresponding to a given strip
 # margin is how much to ignore toward the edges
@@ -33,10 +34,9 @@ end
 
 # Find the minima in the neighbourhood around each possible separation point
 
-def find_minima(arr, seps)
-
+def find_minima(arr, seps, nhood)
     pstep = arr.length/(seps+1)
-    diffstep = pstep/10
+    diffstep = Integer(pstep*nhood)
 
     mins=Array.new(seps+2)
     mins[0]=0
@@ -92,12 +92,18 @@ end
 
 seps = images-1
 files = ARGV
+
+if files.length < 
+    print "give at least one input file"
+    exit(0)
+end
 #fheader=File.basename(infile, File.extname(infile))
 
 Img = Struct.new(:fname,	# Full size file name
 		 :divs,		# scale divisor
 		 :intensity,	# average value array
-		 :cuts,		# final cut positions
+		 :cuts,		# found cut positions
+		 :fcut,		# final frame cuts
 		 :row, :col)	# size of the scaled-down image 
 strips=Array.new()
 files.each {|infile|
@@ -106,10 +112,13 @@ files.each {|infile|
     instrip.rotate!(-90, '<')
     ds=instrip.rows/400.0
     strip=instrip.resize(1/ds)
-    arr=make_intense(strip, margin)
-    cuts=find_minima(arr, seps)
-    strips.push(Img.new(infile, ds, arr, cuts, strip.rows, strip.columns))
     instrip.destroy!
+
+    arr=make_intense(strip, margin)
+    cuts=find_minima(arr, seps, diff_fac)
+    
+    a=Array.new()
+    strips.push(Img.new(infile, ds, arr, cuts,a, strip.rows, strip.columns))
 }
 
 #strips.each {|s|
@@ -117,10 +126,54 @@ files.each {|infile|
 #}
 #exit()
 
-# fit to an average or set frame width 
+# fit to an average or given frame width 
 if true
-    print ""
 
+    # find the average (or median?) frame width
+    total=0
+    nr=0
+    strips.each {|s|
+	(1..(seps-1)).each {|i|	    # note '1'
+	    total+=s.divs*(s.cuts[i+1]-s.cuts[i])
+	    nr+=1
+	}
+    }
+    print "Average: ", total,"/", nr, " = ", total/nr, "\n"
+
+    avg = Integer(total/nr)
+
+    # fit the frame
+    strips.each {|s|
+	(0..(seps)).each {|i|
+
+	    if i==0	    # first frame
+		f=[[s.divs*s.cuts[i+1]-avg,0].max, 
+		    s.cuts[i+1]*s.divs]
+	    elsif i==seps   # last frame
+		f=[s.divs*s.cuts[i], 
+		    [s.cuts[i]*s.divs+avg, s.cuts[i+1]*s.divs].min]
+	    else
+		# In a panic; can't think straight. Just set the frame to the
+		# left edge minimum (or right if it's the first frame). Worry
+		# about best-fit later.
+
+		f=[s.divs*s.cuts[i], 
+		    s.cuts[i]*s.divs+avg]
+	    end
+
+	    s.fcut.push(f)
+	}
+    }
+#    exit(0)
+
+# No fixed frame, so jsut set the cuts to each local minimum
+else			
+    strips.each {|s|
+	(0..(seps)).each {|i|
+	    f=[s.cuts[i]*s.divs, s.cuts[i+1]*s.divs]
+	    s.fcut.push(f)
+	}
+    }
 end
 
 filenr=1
@@ -131,12 +184,13 @@ strips.each {|s|
     ds=s.divs
 
     (0..(seps)).each {|i|
+	cuts=s.fcut[i]
 
-	outimg=instrip.crop(s.cuts[i]*ds,0,ds*(s.cuts[i+1]-s.cuts[i]),instrip.rows,true)
+	outimg=instrip.crop(cuts[0],0,(cuts[1]-cuts[0]),instrip.rows,true)
 	fname=format("%s.%03d.tif", fheader, filenr)
 	filenr+=1
 	outimg.write(fname)
-	print "size: ", ds*(s.cuts[i+1]-s.cuts[i]),"\n"
+	print "size: ", (cuts[1]-cuts[0]),"\n"
     }
     instrip.destroy!
 }
