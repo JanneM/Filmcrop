@@ -67,32 +67,25 @@ def find_sqr_minima(strip, frames, avgframe, nhood)
 
     mins=Array.new(frames)
 
-
     (1..frames-2).each {|fr|
 
 	    ps = Integer(fr*pstep)
 	    pe = Integer(ps+avgframe)
+
+	    # normalize
+	    arr_start=arr.slice(ps-diffstep..ps+diffstep)
+	    arr_end=arr.slice(pe-diffstep..pe+diffstep)
+	    ms=arr_start.min
+	    me=arr_end.min
+	    arr_start.map! {|x| x-ms}
+	    arr_end.map! {|x| x-me}
+
 	    min=100000
 	    finp=-1
-	    # normalize
-	    ms = 100000
-	    me = 100000
-	    (-diffstep..diffstep).each {|p|
-		v = arr[ps+p]
-		ms = v if v<ms
-
-		v = arr[pe+p]
-		me = v if v<me
-	    }
-
-	    (-diffstep..diffstep).each {|p|
-		arr[ps+p] -= ms
-		arr[pe+p] -= me
-	    }
 	    (-diffstep..diffstep).each {|p|
 		
-		v=(arr[ps+p]**2 + 
-		   arr[pe+p]**2)
+		v=(arr_start[p+diffstep]**2 + 
+		   arr_end[p+diffstep]**2)
 		if v<min
 		    min=v
 		    finp=p
@@ -104,7 +97,6 @@ def find_sqr_minima(strip, frames, avgframe, nhood)
     mins[0]=[(mins[1][0]-avgframe*ds), (mins[1][0])]
     mins[frames-1]=[mins[frames-2][1], mins[frames-2][1]+avgframe*ds]
     mins
-#    mins
 end
 
 # Get a list of input files, optionally an output prefix (defaulting to
@@ -113,6 +105,9 @@ end
 fheader="crop"
 images=6
 margin=1.0/8
+dofit=true
+fitsize=0
+doaverage=true
 
 optparse = OptionParser.new { |opts|
 
@@ -124,11 +119,24 @@ optparse = OptionParser.new { |opts|
 	    exit
 	end
     end
+    opts.on( '-f', "--[no-]fit=[SIZE]", Integer, "Fit the average frame size or given frame [SIZE] to every image (default)") do |f|
+	if f==nil
+	    dofit = true    # default
+	    doaverage=true
+	elsif f==false
+	    dofit = false
+	else
+	    dofit = true
+	    doaverage=false
+	    fitsize=f
+	end
+
+    end
     opts.on( '-o', '--output FILE', 'Set output file name prefix (default "crop")' ) do |f|
 	fheader=f
     end
 
-    opts.on( '-h', '--help', 'Get help' ) do
+    opts.on_tail( '-h', '--help', 'Get help' ) do
 	puts opts
 	exit
     end
@@ -143,7 +151,8 @@ seps = images-1
 files = ARGV
 
 if files.length < 1
-    print "give at least one input file\n"
+    print "Need at least one input file.\n"
+    puts optparse
     exit(0)
 end
 #fheader=File.basename(infile, File.extname(infile))
@@ -177,52 +186,31 @@ files.each {|infile|
 #}
 #exit()
 
-print "fitting... \n"
 # fit to an average or given frame width 
-if true
+if dofit
+    print "fitting... \n"
 
-    # find the average (or median?) frame width
     total=0
     mintotal=0
     nr=0
     strips.each {|s|
-	(1..(seps-1)).each {|i|	    # note '1'
-	    mintotal+=(s.cuts[i+1]-s.cuts[i])
-	    total+=s.divs*(s.cuts[i+1]-s.cuts[i])
+	if doaverage		    # find average frame size
+	    (1..(seps-1)).each {|i|	    # note '1'
+		total+=(s.cuts[i+1]-s.cuts[i])
+		nr+=1
+	    }
+	else			    # use user-supplied size
+	    total+=fitsize/s.divs
 	    nr+=1
-	}
+	end
     }
-    print "Average: ", total,"/", nr, " = ", total/nr, "\n"
-    minavg = Integer(mintotal/nr)
-    avg=Integer(total/nr)
+#    print "Average: ", total,"/", nr, " = ", total/nr, "\n"
+    avg = Integer(total/nr)
 
     strips.each {|s|
-	f2=find_sqr_minima(s, images, minavg, diff_fac)
-	(0..(seps)).each {|i|
-
-	    if i==0	    # first frame
-		f=[[s.divs*s.cuts[i+1]-avg,0].max, 
-		    s.cuts[i+1]*s.divs]
-	    elsif i==seps   # last frame
-		f=[s.divs*s.cuts[i], 
-		    [s.cuts[i]*s.divs+avg, s.cuts[i+1]*s.divs].min]
-	    else
-		# In a panic; can't think straight. Just set the frame to the
-		# left edge minimum (or right if it's the first frame). Worry
-		# about best-fit later.
-
-		f=[s.divs*s.cuts[i], 
-		    s.cuts[i]*s.divs+avg]
-
-		# It's fine, relatively. Let's do fitting here.
-		
-	    end
-
-#	    s.fcut.push(f)
-	}
+	f2=find_sqr_minima(s, images, avg, diff_fac)
 	s.fcut = f2
     }
-#    exit(0)
 
 # No fixed frame, so just set the cuts to each local minimum
 else			
