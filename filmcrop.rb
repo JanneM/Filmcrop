@@ -81,9 +81,6 @@ def find_sqr_minima(strip, frames, framesize)
 	ps = Integer(f*pstep)
 	pe = Integer(ps+framesize)
 
-	# Normalize each area. Yes, we're doing each area twice. So sue me. If we
-	# change the way we select the areas we need to do each pair separately 
-	# anyhow.
 	arr_start=arr.slice(ps-diffstep..ps+diffstep)
 	arr_end=arr.slice(pe-diffstep..pe+diffstep)
 	ms=arr_start.min

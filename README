@@ -3,16 +3,17 @@ Filmcrop
 
 Copyright (C) 2012, Jan Morén
 
-Filmcrop is a small script to find and crop out the individual frames from scanned strips of film images.
+Filmcrop is a small script to find and crop out the individual frames from scanned strips of film images. It is licenced under the GPL; check the file LICENSE for details.
+
 
 Very Quick Start
 ----------------
 
-Take a set of scanned strips. Make sure they're positive, not negative. Images should be approximately aligned across scans, and begin reasonably close to the start of the scan. With six images per strip, run:
+Take a set of scanned strips. Make sure they're positive, not negative. The images on each strip should be approximately aligned and the first edge should begin reasonably close to the start of the scan. With six images per strip, run:
 
     > filmcrop strip1 strip2 strip3 ...
 
-With strips of other sizes, use the "--images" parameter:
+Use the "--images" parameter with strips of other sizes:
 
     > filmcrop --images n strip1 strip2 strip3 ...
 
@@ -24,11 +25,11 @@ Don't crop to a specific, fixed size:
 
     > filmcrop --no-fit strip1 strip2 strip3 ...
 
-To set the output file prefix:
+Set the output file prefix:
 
     > filmcrop --output FILE n strip1 strip2 strip3 ...
 
-For more detail, read on.
+For more detail, read on below.
 
 
 Background
@@ -59,9 +60,9 @@ Oh, as written it assumes the strips are already positive. If you scan slides th
 
 Q. What license is the code?
 
-A. GPL version 3. In short you can use the code here in your own projects _if_ your code is also licensed under GPLv3 or a compatible license. If not then you can't. And you can pass along the program to others as long as it retains my copyright and the license. 
+A. GPL version 3. In short you can use the code here in your own projects _if_ your code is also licensed under GPLv3 or a compatible license. If not then you can't. And you can pass along the program to others - even sell it - as long as it retains my copyright and the license. 
 
-Check the "GPL" file for all the gory details.
+Check the LICENSE file for all the gory details.
 
 
 
@@ -104,7 +105,7 @@ Q. I've got my scans. And a dozen new gray hairs for my trouble. Half a dozen la
 A. Great! Now, first, have you made sure the images are positive? If you have color negatives you probably want to subtract the orange mask from them too before you crop. It's easier to do it for a few strips than for lots of individual frames. You either let your scanning software do it (but beware that they sometimes do it badly or outright wrong (3)) or you use some other tool or script for it. 
 
 
-Q. They're positive. And so am I.
+Q. I'm positive that they are.
 
 A. Haha. Ha. Filmcrop assumes you have six images per strip by default. If you have 35mm film developed they will usually cut them into strips of six frames each, and many scanners are made to scan six-frame strips. If so, all you need to do is run:
 
@@ -112,7 +113,7 @@ A. Haha. Ha. Filmcrop assumes you have six images per strip by default. If you h
 
 filmcrop will go through all strips and try to find likely spaces between images. It'll estimate the typical image size, try to fit each image to that size as best it can, then save each frame as its own file. With any luck that will do fine.
 
-If you have a different number of frames you can use the "images" parameter. For 12 frames (perhaps you use a half-frame camera):
+If you have a different number of frames you can use the "images" parameter. If you use a half-frame camera for instance, you'll have 12 frames on each strip:
 
     > filmcrop --images 12 scan1 scan2 ..
 
@@ -123,7 +124,7 @@ or
 
 Q. I see there's a "--[no-]fit=[SIZE]" option. What is that and how do I use it?
 
-A.Sometimes the frame size guess is wrong. Or your strips have only two frames each (for medium-format film for instance). Then you can set the horizontal frame size manually:
+A.Sometimes the frame size guess is wrong. Or your strips have only two frames each (for medium-format film for instance). Then you can set the horizontal frame size in pixels manually:
 
     > filmcrop --fit=3000 ...
 
@@ -152,29 +153,29 @@ Q. It doesn't crop right! There's a black border left around every frame! You su
 
 A. It's not meant to actually remove the border. It's just meant to divide the strips into individual frames. You may want to leave a bit of the dark area for later processing stages, and you will be cropping the final image anyhow. Some people also like to keep the frame as part of the picture.
 
-Besides, cropping that dark frame is surprisingly hard. Cameras often have irregular frames, with a wavy, non-rectangular border, rounded corners, bits of crud sticking into the frame. Where and how to crop really is a judgement decision and one I'm happier to make by myself.
+Besides, cropping that border is surprisingly hard. Cameras, older cameras especially, often have irregular frames, with a wavy, non-rectangular border, rounded corners, bits of crud sticking into the frame. Where and how to crop really is a judgement decision and one I'm happier to make by myself.
 
 
 Q. There's no [OSX|Windows|SunOS|AtariST|S360|Android|c64] version! You suck.
 
-A. I wrote this for my own use, and I use it only under Linux. I don't even have access to computers with other systems so I couldn't develop a version for them if I wanted. Which I kind of don't, this being a hobby and all(4).
+A. I wrote this for my own use, and I use it only under Linux. I don't even have access to computers with other systems so I couldn't develop a version for them if I wanted to. Which I kind of don't, this being a hobby and all(4).
 
 
-Q. Why Ruby with ImageMagick? Everyone knows [C|C++|Python|Java|C#|Haskell|Scala|Forth] is the Great Leap Forward for this kind of thing! You suck.
+Q. Why Ruby with ImageMagick? Everyone knows [C|C++|Python|Java|C#|Haskell|Scala|Forth] is the next Great Leap Forward in software development and perfect for this kind of thing! You suck.
 
-A. I use Ruby because I like it. I could have used C++ or Python of course, but Ruby is way more fun. If it isn't fun, it's no longer a hobby(5). Besides, I'm on a Scheme bender right now; just be happy I didn't develop my own language bindings and wrote the whole thing in Guile.
+A. I use Ruby because I like it. I could have used C++ or Python for instance, but Ruby is way more fun. If it isn't fun, it's no longer a hobby(5). Besides, I'm on a Scheme bender right now; don't complain about Ruby and just be happy I didn't write the whole thing in Guile instead.
 
 
-Q. What's with all these limitations? Why do I have to have roughly aligned images, why do I have to tell how many images there are on the strip, why does it often not crop down the exact center of the image gap, and why can't I get images cropped really tightly around the image itself?
+Q. What's with all these limitations? Why do I have to have roughly aligned images, why do I have to tell it how many images there are on the strip, why doesn't it crop down the exact center of every image gap, and why can't I get images cropped really tightly around the image itself?
 
 A. Every limitation is solvable. In principle, if we can see to separate the images then we can design a system that will do it as well(6). But just because we _can_ doesn't mean it would be _easy_. Every limitation you remove increases the complexity. 
 
-Given enough time and effort, I could probably create an all-singing all-dancing statistical image processing-based film crop tool that will handle any case you could throw at it. But I have little use for such a general tool myself; it'd be big and slow and take a lot of time to get right; and writing it would feel suspiciously like work(7). I'm doing this for fun, to support my photography hobby, and wrestling with Haar features and adaptive template matching is not really what I like to do on my time off.
+Given enough time and effort, I could probably create an all-singing all-dancing statistical image processing-based film crop tool that will handle any case you could throw at it. But I have little use for such a general tool myself; it'd be big and slow and take a lot of time to get right; and writing it would feel suspiciously like work(7). I'm doing this for fun and to support my photography hobby. Wrestling with Haar features and adaptive template matching is not really what I like to do on my time off.
 
 
-Q. Why GPL? Everyone knows you should use the [BSD|Copyleft|Apache] license. You suck.
+Q. Why GPL? Everyone knows you should use the [BSD|Artistic|MPL|Apache] license. You suck.
 
-A. My code, my license(8). I find GPL to be basically fair: if you make use of my code in yours, you pay me for it by making your code available for me in turn.
+A. My code, my license(8). I find GPL to be basically fair: if you make use of my code in yours, you pay me back by making your code available for me to use in turn.
 
 
 Q. I want to tell you just how much you suck. Or there's a bug. Or I want to donate huge amounts of beer in grateful appreciation. How do I get in touch?
@@ -182,7 +183,7 @@ Q. I want to tell you just how much you suck. Or there's a bug. Or I want to don
 A. Try my email: jan.moren@gmail.com
 
 
-Q. I just noticed this README is almost twice the size of the entire filmcrop code. You're quite the blabbermouth, aren't you?
+Q. I just noticed this README is more than twice the size of the entire filmcrop code. You're quite the blabbermouth, aren't you?
 
 A. Guilty as charged. Let's stop here.
 
