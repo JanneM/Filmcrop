@@ -1,0 +1,208 @@
+
+Filmcrop
+
+Copyright (C) 2012, Jan Morén
+
+Filmcrop is a small script to find and crop out the individual frames from scanned strips of film images.
+
+Very Quick Start
+----------------
+
+Take a set of scanned strips. Make sure they're positive, not negative. Images should be approximately aligned across scans, and begin reasonably close to the start of the scan. With six images per strip, run:
+
+    > filmcrop strip1 strip2 strip3 ...
+
+With strips of other sizes, use the "--images" parameter:
+
+    > filmcrop --images n strip1 strip2 strip3 ...
+
+Set your own horizontal image size SIZE:
+
+    > filmcrop --fit=SIZE strip1 strip2 strip3 ...
+
+Don't crop to a specific, fixed size:
+
+    > filmcrop --no-fit strip1 strip2 strip3 ...
+
+To set the output file prefix:
+
+    > filmcrop --output FILE n strip1 strip2 strip3 ...
+
+For more detail, read on.
+
+
+Background
+----------
+
+Q. Why would you want something like this? 
+
+A. Film scanning software is often excellent at getting high quality results from film scanners. it's surprisingly terrible at anything else(1). The least painful way is to get the scans from the scanner as quickly as possible, then do your postprocessing with other tools. VueScan, which I use for my sins(2), can't do automated cropping of scanned film strips, and manual cropping is slow, clumsy and error-prone.
+
+Enter filmcrop. It takes a set of scanned strips, tries to find the spaces between frames and crops them into equal-sized frames. You only need to scan whole strips of film in one go, then let filmcrop divide the scans up into individual numbered images for you.
+
+
+Q. OK, but why do you care about film photograpy? It's so 19th century. Besides, digital cameras are so much better in every way.
+
+A. It's a hobby. Hobbies aren't supposed to make sense.
+
+
+Q. What's the limitations, then? Bound to be a fair few, right?
+
+A. Sure. Filmcrop looks for vertical spaces only in areas where they're likely to be. It knows the size of the whole strip and the number of images it's supposed to have. It figures out about where each space is supposed to be and looks for it only in an area around that point.
+
+That means that your strips should be reasonably "tight" so that there's not a whole lot of non-strip edges around the strip itself. I also assume that the images are aligned across strips, with the first edge of the first frame close to the end of the strip. 
+
+And the strips should all be about the same size. Say you have just a couple of images on the first strip or last strip on a roll. You should still scan a whole strip, and align those images so their edges end up in much the same place as if you had a full strip.
+
+Oh, as written it assumes the strips are already positive. If you scan slides they're fine as-is, but if you scan negative film or black and white you need to invert them first. That's usually not a problem; you usually want to invert and subtract the orange mask from negative film before you crop into frames anyhow.
+
+
+Q. What license is the code?
+
+A. GPL version 3. In short you can use the code here in your own projects _if_ your code is also licensed under GPLv3 or a compatible license. If not then you can't. And you can pass along the program to others as long as it retains my copyright and the license. 
+
+Check the "GPL" file for all the gory details.
+
+
+
+Installing
+----------
+
+Q. This is written in Ruby, right? How do I run it?
+
+A. Yes, it's written in Ruby and uses the RMagick bindings of ImageMagick. I've tested this on Ruby 1.8.7 and RMagick 2.13.1 on Ubuntu 11.10. My guess is it will work just fine with other recent versions and on other Linux systems to, but I have not tested it.
+
+I think you only need to install Ruby, RMagick and ImageMagick to make this work. Again, I have done absolutely no testing to confirm this. Under Ubuntu you can use the Software Installer to find and install them, or you can use the command line (which is quicker):
+
+    > sudo apt-get install ruby librmagick-ruby
+
+Imagemagick and other things you may need will get installed automagically by apt.
+
+
+Q. Um, I don't use Linux. How do I run this under other systems?
+
+A. I don't know. I'm sure you can install Ruby just about anywhere, and I think ImageMagick runs on lots of systems too. I don't know how widely RMagick has been ported, though, and as I don't use other systems I have no way of testing it. If you can get Ruby and RMagick installed you should be good to go.
+
+
+Q. OK, Ruby and everything is installed. Now what do I do?
+
+A. Move the "filmcrop.rb" file somewhere your system will look for executable files. I like to have a 'bin' folder in my home directory for things like this. Ubuntu is usually set up to look for programs there if it exists.
+
+Then make sure it is marked as executable. If it is not, you can easily do it from you file browser or on the command line:
+
+> chmod +x filmcrop.rb
+
+You can of course change the name and remove the ".rb" bit if you find it annoying.
+
+
+
+Using filmcrop
+--------------
+
+Q. I've got my scans. And a dozen new gray hairs for my trouble. Half a dozen large files. 
+
+A. Great! Now, first, have you made sure the images are positive? If you have color negatives you probably want to subtract the orange mask from them too before you crop. It's easier to do it for a few strips than for lots of individual frames. You either let your scanning software do it (but beware that they sometimes do it badly or outright wrong (3)) or you use some other tool or script for it. 
+
+
+Q. They're positive. And so am I.
+
+A. Haha. Ha. Filmcrop assumes you have six images per strip by default. If you have 35mm film developed they will usually cut them into strips of six frames each, and many scanners are made to scan six-frame strips. If so, all you need to do is run:
+
+    > filmcrop strip1 strip2 strip3 ...
+
+filmcrop will go through all strips and try to find likely spaces between images. It'll estimate the typical image size, try to fit each image to that size as best it can, then save each frame as its own file. With any luck that will do fine.
+
+If you have a different number of frames you can use the "images" parameter. For 12 frames (perhaps you use a half-frame camera):
+
+    > filmcrop --images 12 scan1 scan2 ..
+
+or
+
+    > filmcrop -i12 scan1 scan2 ...
+
+
+Q. I see there's a "--[no-]fit=[SIZE]" option. What is that and how do I use it?
+
+A.Sometimes the frame size guess is wrong. Or your strips have only two frames each (for medium-format film for instance). Then you can set the horizontal frame size manually:
+
+    > filmcrop --fit=3000 ...
+
+or 
+
+    > filmcrop -f3000 ...
+
+If the fit just won't work - for a strip with only one real image on it for instance - you can try to not fit at all, but just use the initial guess on where the spaces are:
+
+    > filmcrop --no-fit ...
+
+Sometimes the crop will work just fine on most strips but fail on the first or last strip. It can be useful to try to crop that one strip separately and play around with these options to make it work. It's a good idea to use a different name for those crops or you may overwrite existing, good images. Set a different output file name:
+
+    > filmcrop --output filename
+
+or
+
+    > filmcrop -o filename
+
+
+
+Other Questions
+---------------
+
+Q. It doesn't crop right! There's a black border left around every frame! You suck.
+
+A. It's not meant to actually remove the border. It's just meant to divide the strips into individual frames. You may want to leave a bit of the dark area for later processing stages, and you will be cropping the final image anyhow. Some people also like to keep the frame as part of the picture.
+
+Besides, cropping that dark frame is surprisingly hard. Cameras often have irregular frames, with a wavy, non-rectangular border, rounded corners, bits of crud sticking into the frame. Where and how to crop really is a judgement decision and one I'm happier to make by myself.
+
+
+Q. There's no [OSX|Windows|SunOS|AtariST|S360|Android|c64] version! You suck.
+
+A. I wrote this for my own use, and I use it only under Linux. I don't even have access to computers with other systems so I couldn't develop a version for them if I wanted. Which I kind of don't, this being a hobby and all(4).
+
+
+Q. Why Ruby with ImageMagick? Everyone knows [C|C++|Python|Java|C#|Haskell|Scala|Forth] is the Great Leap Forward for this kind of thing! You suck.
+
+A. I use Ruby because I like it. I could have used C++ or Python of course, but Ruby is way more fun. If it isn't fun, it's no longer a hobby(5). Besides, I'm on a Scheme bender right now; just be happy I didn't develop my own language bindings and wrote the whole thing in Guile.
+
+
+Q. What's with all these limitations? Why do I have to have roughly aligned images, why do I have to tell how many images there are on the strip, why does it often not crop down the exact center of the image gap, and why can't I get images cropped really tightly around the image itself?
+
+A. Every limitation is solvable. In principle, if we can see to separate the images then we can design a system that will do it as well(6). But just because we _can_ doesn't mean it would be _easy_. Every limitation you remove increases the complexity. 
+
+Given enough time and effort, I could probably create an all-singing all-dancing statistical image processing-based film crop tool that will handle any case you could throw at it. But I have little use for such a general tool myself; it'd be big and slow and take a lot of time to get right; and writing it would feel suspiciously like work(7). I'm doing this for fun, to support my photography hobby, and wrestling with Haar features and adaptive template matching is not really what I like to do on my time off.
+
+
+Q. Why GPL? Everyone knows you should use the [BSD|Copyleft|Apache] license. You suck.
+
+A. My code, my license(8). I find GPL to be basically fair: if you make use of my code in yours, you pay me for it by making your code available for me in turn.
+
+
+Q. I want to tell you just how much you suck. Or there's a bug. Or I want to donate huge amounts of beer in grateful appreciation. How do I get in touch?
+
+A. Try my email: jan.moren@gmail.com
+
+
+Q. I just noticed this README is almost twice the size of the entire filmcrop code. You're quite the blabbermouth, aren't you?
+
+A. Guilty as charged. Let's stop here.
+
+
+Footnotes
+---------
+
+(1) I mean _really_ terrible. I've only used a couple of programs but I swear I could not make interfaces suck as bad if I spent a solid week trying. I'm not going to go into examples or this README will turn into a semi-coherent rant about three times its current size. 
+
+(2) If anybody knows of an alternative that will do good-quality film cans from an Epson V700 under Ubuntu, drop me a line.
+
+(3) see (1).
+
+(4) If you _really_ want a different version or license, get in touch. My hourly rates are quite competitive, though I doubt it's competitive enough for anyone to actually pay for it. 
+
+(5) see (4).
+
+(6) If you've been shooting film for a while you know of course that sometimes we can't even do it ourselves. A very underexposed shot at the end of a strip may simply have no well-defined edge, and cropping becomes a matter of guesswork as much as anything. 
+
+(7) See (4).
+
+(8) See (4).
+

@@ -1,13 +1,28 @@
 #!/usr/bin/ruby
+#
+# Filmcrop - crop scanned film strips into individual frames
+#
+# Copyright (C) 2012  Jan Morén
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'RMagick'
 require 'optparse'
-require 'pp'
 
 $diff_fac=0.1	# fraction frame width to search for an edge
 $margin=1.0/8	# ignored top and bottom area
 $ds=nil		# scale factor for the small images we work with
-# Get a list of input files, optionally an output prefix (defaulting to
-# "crop").
 
 fheader="crop"
 images=6
@@ -15,8 +30,8 @@ images=6
 dofit=true
 fitsize=0
 doaverage=true
+
 # create the intensity array corresponding to a given strip
-# $margin is how much to ignore toward the edges
 
 def make_intense(fstrip)
 
@@ -25,19 +40,11 @@ def make_intense(fstrip)
 
     acc = Array.new(cols)
     maxp = 0
-    minp = 1000000
-
-    cols.times {|x|
-	pixels = fstrip.get_pixels(x,(rows*$margin),1,(rows-rows*$margin))
-	mp=0.0
-	pixels.each { |p|
-	    val=p.intensity()
-	    mp=val if mp < val
-	}
+    cols.times {|col|
+	pixels = fstrip.get_pixels(col,(rows*$margin),1,(rows-rows*$margin))
+	mp = pixels.max_by{|p| p.intensity()}.intensity()*1.0
 	maxp = mp if mp > maxp
-	minp = mp if mp < minp
-
-	acc[x] = mp*1.0
+	acc[col] = mp
     }
     acc.map! {|v| ((v)/(maxp))}
 end
@@ -52,62 +59,47 @@ def find_minima(arr, frames)
     mins[0]=0
     mins[frames]=arr.length-1
 
-    (frames-1).times {|sep|
-	pc = (sep+1)*pstep
-	min=100000
-	finp=-1
-	((pc-diffstep)..(pc+diffstep)).each {|p|
-	    if arr[p]<min
-		min=arr[p]
-		finp=p
-	    end 
-	}
-	mins[sep+1] = finp
+    (1..frames-1).each {|f|
+	pc_min=f*pstep-diffstep
+	pc_max=f*pstep+diffstep
+	(min, minp) = arr[pc_min..pc_max].each_with_index.min
+	mins[f] = minp+pc_min
     }
     mins
 end
 
-# find least square minima
-def find_sqr_minima(strip, frames, avgframe)
+# find least square minima of pairs of points
+def find_sqr_minima(strip, frames, framesize)
     arr = strip.intensity
-    print "frames: ", frames, "\n"
     pstep = arr.length/(frames)
     diffstep = Integer(pstep*$diff_fac)
 
     mins=Array.new(frames)
 
-    (1..frames-2).each {|fr|
+    (1..frames-2).each {|f|
 
-	    ps = Integer(fr*pstep)
-	    pe = Integer(ps+avgframe)
+	ps = Integer(f*pstep)
+	pe = Integer(ps+framesize)
 
-	    # normalize
-	    arr_start=arr.slice(ps-diffstep..ps+diffstep)
-	    arr_end=arr.slice(pe-diffstep..pe+diffstep)
-	    ms=arr_start.min
-	    me=arr_end.min
-	    arr_start.map! {|x| x-ms}
-	    arr_end.map! {|x| x-me}
+	# Normalize each area. Yes, we're doing each area twice. So sue me. If we
+	# change the way we select the areas we need to do each pair separately 
+	# anyhow.
+	arr_start=arr.slice(ps-diffstep..ps+diffstep)
+	arr_end=arr.slice(pe-diffstep..pe+diffstep)
+	ms=arr_start.min
+	me=arr_end.min
+	arr_start.map! {|x| x-ms}
+	arr_end.map! {|x| x-me}
 
-	    min=100000
-	    finp=-1
-	    (-diffstep..diffstep).each {|p|
-		
-		v=(arr_start[p+diffstep]**2 + 
-		   arr_end[p+diffstep]**2)
-		if v<min
-		    min=v
-		    finp=p
-		end 
-	    }
+	minp=arr_start.zip(arr_end).each_with_index.min_by {|ap,i|
+	    ap[0]**2+ap[1]**2}[1]-diffstep
 
-	    mins[fr]=[(ps+finp)*$ds, (pe+finp)*$ds]
+	mins[f]=[(ps+minp)*$ds, (pe+minp)*$ds]
     }
-    mins[0]=[(mins[1][0]-avgframe*$ds), (mins[1][0])]
-    mins[frames-1]=[mins[frames-2][1], mins[frames-2][1]+avgframe*$ds]
+    mins[0]=[(mins[1][0]-framesize*$ds), (mins[1][0])]
+    mins[frames-1]=[mins[frames-2][1], mins[frames-2][1]+framesize*$ds]
     mins
 end
-
 
 optparse = OptionParser.new { |opts|
 
@@ -136,7 +128,7 @@ optparse = OptionParser.new { |opts|
 	fheader=f
     end
 
-    opts.on_tail( '-h', '--help', 'Get help' ) do
+    opts.on_tail( '-h', '--help', 'Print this help text' ) do
 	puts opts
 	exit
     end
@@ -147,26 +139,30 @@ rescue OptionParser::ParseError => e
     exit 1
 end
 
-seps = images-1
 files = ARGV
-
 if files.length < 1
     print "Need at least one input file.\n"
     puts optparse
     exit(0)
 end
-#fheader=File.basename(infile, File.extname(infile))
 
 Img = Struct.new(:fname,	# Full size file name
 		 :intensity,	# average value array
 		 :cuts,		# found cut positions
 		 :fcut,		# final frame cuts
 		 :row, :col)	# size of the scaled-down image 
+
 strips=Array.new()
+
 files.each {|infile|
 
     print "Processing file: ", infile, "\n"
-    instrip = Magick::Image.read(infile).first
+    begin instrip = Magick::Image.read(infile).first
+    rescue Magick::ImageMagickError => e
+	puts e, "\n", optparse
+	exit 1
+    end
+
     instrip.rotate!(-90, '<')
     $ds=$ds||instrip.rows/200.0
     strip=instrip.resize(1/$ds)
@@ -180,14 +176,9 @@ files.each {|infile|
     strip.destroy!
 }
 
-#strips.each {|s|
-#    pp s.cuts
-#}
-#exit()
-
 # fit to an average or given frame width 
 if dofit
-    print "fitting... \n"
+    print "fitting... "
     avg=0
     if doaverage		    # find average frame size
 	total=0
@@ -198,17 +189,16 @@ if dofit
 		nr+=1
 	    }
 	}
-	#    print "Average: ", total,"/", nr, " = ", total/nr, "\n"
 	avg = Integer(total/nr)
+	print "Estimated size: ", Integer(avg*$ds), " pixels\n"
     else			    # use user-supplied size
 	avg=fitsize/$ds
+	print "\n"
     end
-
     strips.each {|s|
 	s.fcut=find_sqr_minima(s, images, avg)
     }
-
-# No fixed frame, so just set the cuts to each local minimum
+# No fixed frame, so just set the cuts at each local minimum
 else			
     strips.each {|s|
 	(0..(images-1)).each {|i|
@@ -220,9 +210,12 @@ end
 
 filenr=1
 strips.each {|s|
-    
     print "crop file: ", s.fname, "\n"
-    instrip = Magick::Image.read(s.fname).first
+    begin instrip = Magick::Image.read(s.fname).first
+    rescue Magick::ImageMagickError => e
+	print s.fname, " has magically disappeared!\n"
+	exit 1
+    end
     instrip.rotate!(-90, '<')
 
     (0..(images-1)).each {|i|
@@ -238,4 +231,3 @@ strips.each {|s|
     instrip.destroy!
 }
 
-	
