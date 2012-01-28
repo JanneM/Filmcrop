@@ -5,6 +5,7 @@ Copyright (C) 2012, Jan Morén
 
 Filmcrop is a small script to find and crop out the individual frames from scanned strips of film images. It is licenced under the GPL; check the file LICENSE for details.
 
+v. 0.1 Initial public version
 
 Very Quick Start
 ----------------
@@ -32,12 +33,12 @@ Set the output file prefix:
 For more detail, read on below.
 
 
-Background
-----------
+Background, in handy Q and A format
+-----------------------------------
 
 Q. Why would you want something like this? 
 
-A. Film scanning software is often excellent at getting high quality results from film scanners. it's surprisingly terrible at anything else(1). The least painful way is to get the scans from the scanner as quickly as possible, then do your postprocessing with other tools. VueScan, which I use for my sins(2), can't do automated cropping of scanned film strips, and manual cropping is slow, clumsy and error-prone.
+A. Film scanning software is often excellent at getting high quality results from film scanners. It's surprisingly terrible at anything else(1). The least painful way is to get the scans from the scanner as quickly as possible, then do your postprocessing with other tools. VueScan, which I use for my sins(2), can't do automated cropping of scanned film strips, and manual cropping is slow, clumsy and error-prone.
 
 Enter filmcrop. It takes a set of scanned strips, tries to find the spaces between frames and crops them into equal-sized frames. You only need to scan whole strips of film in one go, then let filmcrop divide the scans up into individual numbered images for you.
 
