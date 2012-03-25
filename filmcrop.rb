@@ -22,8 +22,8 @@
 require 'RMagick'
 require 'optparse'
 
-$diff_fac=0.1	# fraction frame width to search for an edge
-$margin=1.0/8	# ignored top and bottom area
+$diff_fac=0.25	# fraction frame width to search for an edge
+$margin=1./8.0	# ignored top and bottom area
 $ds=nil		# scale factor for the small images we work with
 
 fheader="crop"
@@ -43,8 +43,11 @@ def make_intense(fstrip)
     acc = Array.new(cols)
     maxp = 0
     cols.times {|col|
-	pixels = fstrip.get_pixels(col,(rows*$margin),1,(rows-rows*$margin))
-	mp = pixels.max_by{|p| p.intensity()}.intensity()*1.0
+	pixels = fstrip.get_pixels(col,(rows*$margin),1,(rows-2*rows*$margin))
+	#mp = pixels.max_by{|p| p.intensity()}.intensity()*1.0
+	mpix = pixels.max_by{|p| [p.red(),p.green(),p.blue()].max}
+	mp = [mpix.red(),mpix.green(),mpix.blue()].max*1.0
+
 	maxp = mp if mp > maxp
 	acc[col] = mp
     }
@@ -170,6 +173,20 @@ files.each {|infile|
     arr=make_intense(strip)
     cuts=find_minima(arr, images)
     
+    if false
+    pix=Array.new(1)
+    pix[0]=Magick::Pixel.from_color('yellow')
+    strip.columns.times {|x|
+        v=arr[x]*strip.rows*0.9
+        strip.store_pixels(x,(strip.rows-v-1),1,1,pix)}
+
+#    pix[0]=Magick::Pixel.from_color('cyan')
+#    cuts.each {|p|
+#        strip.store_pixels(p/ds,rows-1,1,1,pix)}
+    strip.write("testout.tif")
+
+    exit()
+    end
     a=Array.new()
     strips.push(Img.new(infile, arr, cuts,a, strip.rows, strip.columns))
     strip.destroy!
@@ -216,7 +233,6 @@ strips.each {|s|
 	exit 1
     end
     instrip.rotate!(-90, '<')
-
     (0..(images-1)).each {|i|
 	cuts=s.fcut[i]
 
