@@ -205,7 +205,11 @@ if dofit
 		nr+=1
 	    }
 	}
-	avg = Integer(total/nr)
+	if nr>0
+	   avg = Integer(total/nr)
+	else
+	    print "This is going to end badly...\n"
+	end
 	print "Estimated size: ", Integer(avg*$ds), " pixels\n"
     else			    # use user-supplied size
 	avg=fitsize/$ds
